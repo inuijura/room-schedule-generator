@@ -169,7 +169,7 @@ class Command
       format_room_info.each { |line| puts line }
     
     rescue => e
-      puts " [Error] 講義室管理情報の表示に失敗しました: #{e.message}"
+      puts " [Error] 講義室管理情報の表示に失敗しました"
     end  
   end
 
@@ -246,7 +246,7 @@ class Command
         loaded_calendar.parse(input_file_calendar)
       rescue => e
         # Calendar 側で raise された具体的なメッセージを表示
-        puts " [Error] '#{input_file_calendar}' の学年暦データ形式が不正です: #{e.message}"
+        puts " [Error] '#{input_file_calendar}' の学年暦データ形式が不正です"
         return
       end
 
@@ -364,7 +364,7 @@ class Command
         puts "  - '#{File.basename(path)}'"
       end
     rescue => e
-      puts " [Error] 予約表の生成に失敗しました: #{e.message}"
+      puts " [Error] 予約表の生成に失敗しました"
     end
   
   end
@@ -395,7 +395,6 @@ class Command
       puts " 以下の講義室を管理対象として登録しました"
       @room_info.output_target_rooms.each { |room| puts "  - #{room}" }
     rescue => e
-      # puts " [Error] 管理対象講義室ファイル '#{room_list_file}' の解析に失敗しました: #{e.message}"
       puts " [Error] 管理対象講義室ファイル '#{room_list_file}' の解析に失敗しました"
     end
   end
