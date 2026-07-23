@@ -1,0 +1,6 @@
+tmp/
+2026年度講義室予約表/
+test/**/*_test_log/
+test.old/
+room-schedule-generator-*.gem
+.ruby-version

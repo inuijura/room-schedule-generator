@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+
+require_relative "../lib/command"
+require 'fileutils'
+
+
+# Ctrl + C（SIGINT）を検知した場合
+Signal.trap(:INT) do
+  # ステータス0で正常終了
+  exit(0)
+end
+
+command = Command.new
+
+# コマンド入力を繰り返し受け付ける
+loop do
+  # コマンドを受け付ける
+  command.read_command
+
+  # 入力内容を解析する
+  command.parse_command
+
+  # コマンドを実行する
+  break if command.execute_command == :quit
+
+  puts "\n"
+end
