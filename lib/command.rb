@@ -2,6 +2,7 @@ require 'tty-prompt'
 require 'tty-cursor'
 require 'reline'
 require 'csv'
+require 'io/console'
 
 require_relative "calendar"
 require_relative "reservation"
@@ -20,10 +21,12 @@ class Command
     "(UNIV)" => 2,
   }.freeze
 
+  ERROR_MSG_PREFIX = " \e[1;31m[ERROR]\e[0m "
+
   REGISTERED_ROOM_EXPLANATION = <<~MSG
-   - USER: 管理対象講義室ファイルにのみ登録されている講義室名
-   - UNIV: 大学から提供される予約・時間割データにのみ登録されている講義室名
-   - ALL:  管理対象講義室ファイルと予約・時間割データの両方に登録されている講義室名
+   - USER: 管理対象講義室ファイルにのみ登録されている講義室 
+   - UNIV: 大学から提供される予約・時間割データにのみ登録されている講義室
+   - ALL:  管理対象講義室ファイルと予約・時間割データの両方に登録されている講義室
   MSG
 
   attr_reader :calendar, :events, :lectures, :reservations, :room_info
@@ -85,25 +88,25 @@ class Command
       if @command_args.empty?
         exec_print
       else
-        puts " [Error] print コマンドには引数が不要です"
+        puts ERROR_MSG_PREFIX + "print コマンドには引数が不要です"
       end
     when "read"
       if @command_args.empty?
         exec_read
       else
-        puts " [Error] read コマンドには引数が不要です"
+        puts ERROR_MSG_PREFIX + "read コマンドには引数が不要です"
       end
     when "write"
       if @command_args.empty?
       exec_write
       else
-        puts " [Error] write コマンドには引数が不要です"
+        puts ERROR_MSG_PREFIX + "write コマンドには引数が不要です"
       end
     when "register"
       if @command_args.empty?
-        puts " [Error] register コマンドにはファイルパスが必要です"
+        puts ERROR_MSG_PREFIX + "register コマンドにはファイルパスが必要です"
       elsif @command_args.length > 1
-        puts " [Error] register コマンドには1つのファイルパスのみ指定してください"
+        puts ERROR_MSG_PREFIX + "register コマンドには1つのファイルパスのみ指定してください"
       else
         exec_register(@command_args[0])
       end
@@ -111,16 +114,16 @@ class Command
       if @command_args.empty?
         exec_select
       else
-        puts " [Error] select コマンドには引数が不要です"
+        puts ERROR_MSG_PREFIX + "select コマンドには引数が不要です"
       end
     when "quit"
       if @command_args.empty?
         return :quit
       else
-        puts " [Error] quit コマンドには引数が不要です"
+        puts ERROR_MSG_PREFIX + "quit コマンドには引数が不要です"
       end
     else
-      puts " [Error] コマンド '#{@command_name}' は存在しません"
+      puts ERROR_MSG_PREFIX + "コマンド '#{@command_name}' は存在しません"
     end
 
     :continue
@@ -130,12 +133,12 @@ class Command
 
   def exec_print # Print コマンドの処理
     if @calendar.nil? || @calendar.date_list.empty?
-      puts " [Error] 先に read コマンドで学年暦データを読み込んでください"
+      puts ERROR_MSG_PREFIX + "先に read コマンドで学年暦データを読み込んでください"
       return
     end
 
     if @room_info.output_target_rooms.empty?
-      puts " [Error] 出力対象講義室がありません"
+      puts ERROR_MSG_PREFIX + "出力対象講義室がありません"
       puts "         register/select コマンドで設定してください"
       return
     end
@@ -169,7 +172,7 @@ class Command
       format_room_info.each { |line| puts line }
     
     rescue => e
-      puts " [Error] 講義室管理情報の表示に失敗しました"
+      puts ERROR_MSG_PREFIX + "講義室管理情報の表示に失敗しました"
     end  
   end
 
@@ -181,20 +184,20 @@ class Command
     begin 
       File.open(file_path, "r") {}
     rescue Errno::ENOENT # ファイルが存在しない場合
-      msg = " [Error] #{file_type_str}データファイル '#{file_path}' がありません\n"
+      msg = ERROR_MSG_PREFIX + "#{file_type_str}データファイル '#{file_path}' がありません\n"
       if file_type_str == "学年暦"
         msg += "         学年暦データファイルは必須です"
       end
       return false, msg
     rescue Errno::EACCES # ファイルの読み込み権限がない場合
-      msg = " [Error] #{file_type_str}データファイル '#{file_path}' の読み取り権限がありません\n"
+      msg = ERROR_MSG_PREFIX + "#{file_type_str}データファイル '#{file_path}' の読み取り権限がありません\n"
       msg+= "         ファイルのアクセス権限を確認してください"
       return false, msg
     end
 
     # 拡張子が .xlsx でなければエラー
     unless File.extname(file_path).downcase == ".xlsx"
-      msg = " [Error] #{file_type_str}データファイルの読み込みに失敗しました\n"
+      msg = ERROR_MSG_PREFIX + "#{file_type_str}データファイルの読み込みに失敗しました\n"
       msg+= "         期待する拡張子は '.xlsx' ですが，'#{File.extname(file_path)}' が入力されました"
       return false, msg
     end
@@ -228,10 +231,8 @@ class Command
       input_file_calendar = read_line(" 1. 学年暦データファイル: ").to_s.chomp
       
       if input_file_calendar.empty?
-        err_msg = <<~MSG
-         [Error] 学年暦データファイルのパスが入力されていません
-                 学年暦データファイルは必須です
-        MSG
+        err_msg = ERROR_MSG_PREFIX + "学年暦データファイルのパスが入力されていません\n"
+        err_msg += "         学年暦データファイルは必須です"
         raise err_msg
       end
 
@@ -245,21 +246,26 @@ class Command
         loaded_calendar = Calendar.new
         loaded_calendar.parse(input_file_calendar)
       rescue => e
-        # Calendar 側で raise された具体的なメッセージを表示
-        puts " [Error] '#{input_file_calendar}' の学年暦データ形式が不正です"
+        if e.is_a?(Calendar::ParseError)
+          puts ERROR_MSG_PREFIX + "'#{input_file_calendar}' の学年暦データ形式が不正です"
+          puts " #{e.full_message}"
+        elsif e.is_a?(Calendar::FileError)
+          puts ERROR_MSG_PREFIX + "'#{input_file_calendar}' の学年暦ファイルが読み込めません (ファイルが破損している可能性があります)"
+        end
         return
       end
 
-      calendar_result = " [Info] 学年暦データファイルは正常に読み込まれました"
+      calendar_result = " [INFO] 学年暦データファイルは正常に読み込まれました"
     rescue => e
       loaded_calendar = nil
+      # すでに ERROR_MSG_PREFIX を付与しているためそのまま表示する
       puts "#{e.message}"
       return
     end
 
     input_file_event = read_line(" 2. 予約データファイル: ").to_s.chomp
     if input_file_event.empty?
-      event_result = " [Info] 予約データファイルは未入力です"
+      event_result = " [INFO] 予約データファイルは未入力です"
       loaded_events = []
     else
       begin
@@ -271,17 +277,17 @@ class Command
         else
           rows_event = Event.parse_excel_rows(input_file_event)
           loaded_events = Event.from_parsed_rows(rows_event)
-          event_result = " [Info] 予約データファイルは正常に読み込まれました"
+          event_result = " [INFO] 予約データファイルは正常に読み込まれました"
         end
       rescue => e
         loaded_events = []
-        event_result = " [Error] 予約データファイル '#{input_file_event}' のデータ形式が不正です"
+        event_result = ERROR_MSG_PREFIX + "予約データファイル '#{input_file_event}' のデータ形式が不正です"
       end
     end
 
     input_file_lecture = read_line(" 3. 時間割データファイル: ").to_s.chomp
     if input_file_lecture.empty?
-      lecture_result = " [Info] 時間割データファイルは未入力です"
+      lecture_result = " [INFO] 時間割データファイルは未入力です"
       loaded_lectures = []
     else
       begin 
@@ -293,11 +299,11 @@ class Command
         else
           rows_lecture = Lecture.parse_excel_rows(input_file_lecture)
           loaded_lectures = Lecture.from_parsed_rows(rows_lecture)
-          lecture_result = " [Info] 時間割データファイルは正常に読み込まれました"
+          lecture_result = " [INFO] 時間割データファイルは正常に読み込まれました"
         end
       rescue => e
         loaded_lectures = []
-        lecture_result = " [Error] 時間割データファイル '#{input_file_lecture}' のデータ形式が不正です"
+        lecture_result = ERROR_MSG_PREFIX + "時間割データファイル '#{input_file_lecture}' のデータ形式が不正です"
       end
     end
 
@@ -319,12 +325,12 @@ class Command
 
   def exec_write # Write コマンドの処理
     if @calendar.nil? || @calendar.date_list.empty?
-      puts " [Error] 先に read コマンドで学年暦データを読み込んでください"
+      puts ERROR_MSG_PREFIX + "先に read コマンドで学年暦データを読み込んでください"
       return
     end
 
     if @room_info.output_target_rooms.empty?
-      puts " [Error] 出力対象講義室がありません"
+      puts ERROR_MSG_PREFIX + "出力対象講義室がありません"
       puts "         register/select コマンドで設定してください"
       return
     end
@@ -354,7 +360,7 @@ class Command
       generated_files = generator.generate_all(output_dir: output_dir)
 
       if generated_files.empty?
-        puts " [Error] 出力対象学期が見つからなかったため、ファイルは生成されませんでした"
+        puts ERROR_MSG_PREFIX + "出力対象学期が見つからなかったため、ファイルは生成されませんでした"
         return
       end
 
@@ -364,19 +370,19 @@ class Command
         puts "  - '#{File.basename(path)}'"
       end
     rescue => e
-      puts " [Error] 予約表の生成に失敗しました"
+      puts ERROR_MSG_PREFIX + "予約表の生成に失敗しました"
     end
   
   end
 
   def exec_register(room_list_file) # Register コマンドの処理
     if room_list_file.nil?
-      puts " [Error] 管理対象講義室ファイルのパスを引数として入力してください"
+      puts ERROR_MSG_PREFIX + "管理対象講義室ファイルのパスを引数として入力してください"
       return
     end
 
     unless File.exist?(room_list_file)
-      puts " [Error] 管理対象講義室ファイル '#{room_list_file}' がありません"
+      puts ERROR_MSG_PREFIX + "管理対象講義室ファイル '#{room_list_file}' がありません"
       return
     end
 
@@ -384,7 +390,7 @@ class Command
       registered_rooms = parse_room_list_csv(room_list_file)
 
       if registered_rooms.empty?
-        puts " [Error] 管理対象講義室ファイル '#{room_list_file}' から講義室名を取得できませんでした"
+        puts ERROR_MSG_PREFIX + "管理対象講義室ファイル '#{room_list_file}' から講義室名を取得できませんでした"
         return
       end
 
@@ -395,7 +401,7 @@ class Command
       puts " 以下の講義室を管理対象として登録しました"
       @room_info.output_target_rooms.each { |room| puts "  - #{room}" }
     rescue => e
-      puts " [Error] 管理対象講義室ファイル '#{room_list_file}' の解析に失敗しました"
+      puts ERROR_MSG_PREFIX + "管理対象講義室ファイル '#{room_list_file}' の解析に失敗しました"
     end
   end
 
@@ -404,10 +410,8 @@ class Command
     output_room = []
 
     if @room_info.rooms.empty?
-      err_msg = <<~MSG
-       [Error] 管理対象講義室がありません
-               register コマンドで管理対象講義室を登録してください
-      MSG
+      err_msg = ERROR_MSG_PREFIX + "管理対象講義室がありません"
+      err_msg += "         register コマンドで管理対象講義室を登録してください"
       puts err_msg
       return
     end
@@ -425,10 +429,11 @@ class Command
     room_choices = @room_info.rooms.sort_by do |room_name|
       sort_key = room_definition_label(room_name)
       [SORT_ORDER.fetch(sort_key, 99), room_name]
-    end.map do |room_name|
+    end.each_with_index.map do |room_name, index|
       definition_label = room_definition_label(room_name)
       {
         name: "#{room_name} #{definition_label}",
+        print_name: "#{index + 1}. #{room_name} #{definition_label}",
         value: room_name,
         definition: definition_label
       }
@@ -440,10 +445,22 @@ class Command
     end
 
     # ラベル付きの講義室名を表示するために、room_choices から print_name を抽出
-    room_choices_display = room_choices.map { |c| c[:name] }
+    room_choices_display = room_choices.map { |c| c[:print_name] }
+
+    # 各タグの講義室数をカウント
+    num_all_tag_rooms = room_choices.count { |c| c[:definition] == "(ALL)" }
+    num_user_tag_rooms = room_choices.count { |c| c[:definition] == "(USER)" }
+    num_univ_tag_rooms = room_choices.count { |c| c[:definition] == "(UNIV)" }
+
+    # ターミナルの行数と列数を取得
+    rows, cols = IO.console.winsize
 
     # ラベルの説明を表示
     puts REGISTERED_ROOM_EXPLANATION
+    puts ""
+
+    # 各タグの講義室数を表示
+    puts " 管理対象講義室の総数: #{room_choices.size} (ALL: #{num_all_tag_rooms}, USER: #{num_user_tag_rooms}, UNIV: #{num_univ_tag_rooms})"
     puts ""
 
     selected_rooms = prompt.multi_select(
@@ -451,12 +468,13 @@ class Command
       room_choices_display,
       default: default_indices,
       show_help: :never,
-      echo: false
+      echo: false,
+      per_page: rows - 7 # ターミナルの行数に合わせ，ヘルプや説明文を表示するために余裕を持たせる
     )
 
     # 選択された講義室の print_name から name を取得
     selected_rooms_name_list = selected_rooms.map do |selected_print_name|
-      room_choices.find { |c| c[:name] == selected_print_name }[:value]
+      room_choices.find { |c| c[:print_name] == selected_print_name }[:value]
     end
 
     @room_info.set_output_target_rooms(selected_rooms_name_list)
