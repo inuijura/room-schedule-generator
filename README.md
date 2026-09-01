@@ -18,32 +18,71 @@
 
 ## 2. システムのインストール方法
 
-> [!NOTE]
-> インストール方法は現在検討中です。以下は、手順の確定後に記載する予定の構成です。
-
 ### 2.1 動作環境
 
-<!-- 対応OS、Rubyのバージョンなどを記載する。 -->
+以下の環境で動作を確認しています。
+
+| OS | Ruby | RubyGems |
+| --- | --- | --- |
+| Windows 11 Pro | 4.0.5 | 4.0.10 |
+| Ubuntu 24.04 LTS | 3.2.3 | 3.4.20 |
 
 ### 2.2 インストール
 
-<!-- リポジトリの取得方法と、依存ライブラリのインストール方法を記載する。 -->
+#### Windows（Gemパッケージ版）
+
+[RubyInstaller](https://rubyinstaller.org/)から、MSYS2環境を含めてRubyをインストールします。その後、ターミナルで次のコマンドを実行します。
+
+```sh
+curl -fLO https://github.com/inuijura/room-schedule-generator/releases/download/v1.0/room-schedule-generator-1.0.gem
+gem install room-schedule-generator-1.0.gem
+del room-schedule-generator-1.0.gem
+```
+
+Rubyをインストールせずに利用する場合は、実行ファイル版をダウンロードします。
+
+```sh
+curl -fLO https://github.com/inuijura/room-schedule-generator/releases/download/v1.0/room-schedule-generator.exe
+```
+
+#### Ubuntu
+
+必要なソフトウェアをインストールした後、インストールスクリプトを実行します。
+
+```sh
+sudo apt install ruby ruby-dev build-essential
+curl -fsSL https://raw.githubusercontent.com/inuijura/room-schedule-generator/v1.0/script/install.sh | bash
+```
+
+インストール後はターミナルを再起動してください。
 
 ### 2.3 起動確認
 
-<!-- 正常にインストールできたことを確認する手順を記載する。 -->
+Gemパッケージ版またはUbuntu版では、次のコマンドを実行します。
+
+```sh
+room-schedule-generator
+```
+
+Windowsの実行ファイル版では、ダウンロード先に合わせて実行ファイルのパスを指定します。
+
+```powershell
+.\<path>\room-schedule-generator.exe
+```
+
+`>` が表示されれば起動完了です。
 
 ## 3. システムの簡単な使い方
 
 ### 3.1 起動
 
-インストールと初期設定が完了したディレクトリで、次のコマンドを実行します。
+Gemパッケージ版またはUbuntu版では、任意のディレクトリで次のコマンドを実行します。
 
 ```sh
-bundle exec ruby main.rb
+room-schedule-generator
 ```
 
-起動すると `>` が表示され、コマンドを入力できる状態になります。利用できるコマンドは次のとおりです。
+Windowsの実行ファイル版では、実行ファイルのパスを指定して起動します。起動すると `>` が表示され、コマンドを入力できる状態になります。利用できるコマンドは次のとおりです。
 
 ### 3.2 コマンド一覧
 
@@ -78,6 +117,8 @@ bundle exec ruby main.rb
 ```
 
 予約データまたは時間割データを使用しない場合は、ファイルパスを入力せずに Enter キーを押します。
+
+各ファイルは対象年度に対応したものを用意し、見出し名やセル配置を変更しないでください。ファイルパスには絶対パスと相対パスのどちらも使用できます。
 
 #### 2. 管理対象の講義室を設定する
 

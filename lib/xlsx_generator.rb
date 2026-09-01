@@ -47,6 +47,7 @@ class XlsxGenerator
 	DEFAULT_ROW_HEIGHT = 34.0
 	HEADER_ROW_HEIGHT = 17.0
 	HEADER_NOTE_TEXT = '※重複している予定は赤色で表示されます'.freeze
+	CONFLICT_LOG_FILE_NAME = 'schedule_conflicts.log'.freeze
 
 	# 初期化
 	# @param calendar [Calendar] カレンダーオブジェクト
@@ -93,8 +94,8 @@ class XlsxGenerator
 			all_conflicts.concat(term_conflicts)
 		end
 
-		# (6) print_conflicts を呼び出し，予定の重複情報を標準出力に表示し，作成した講義室予約表の XLSX ファイルのパスのリストを返す
-		print_conflicts(all_conflicts)
+		# (6) print_conflicts を呼び出し，予定の重複情報を標準出力に表示したうえで，ログファイルにも出力する
+		print_conflicts(conflicts: all_conflicts, output_dir: output_dir)
 		generated_files
 	end
 
@@ -748,31 +749,47 @@ class XlsxGenerator
 		}
 	end
 
-	# 学期の期間内の各(日付, 講義室, 時限)ごとのセル情報から、予定の重複情報を出力する
+	# 学期の期間内の各(日付, 講義室, 時限)ごとのセル情報から、予定の重複情報を標準出力とログファイルに出力する
 	# @param conflicts [Array<Hash>] 予定の重複情報の配列
+	# @param output_dir [String] ログファイルを配置するディレクトリ
 	# @return [void]
-	def print_conflicts(conflicts)
+	def print_conflicts(conflicts:, output_dir:)
 		return if conflicts.empty?
 
-		puts " 予定の重複が #{conflicts.length} 件見つかりました:"
-		puts ' ==================================================='
+		stdout_lines = []
+		summary_message = "予定の重複が #{conflicts.length} 件見つかりました:"
+		separator_message = '=================================================='
+		stdout_lines << " #{summary_message}"
+		stdout_lines << " #{separator_message}"
 
 		conflicts.each_with_index do |conflict, idx|
-			puts "  #{idx + 1} 件目"
+			index_message = "#{idx + 1} 件目"
+			stdout_lines << "  #{index_message}"
+
 			period_text = if conflict[:start_period] == conflict[:end_period]
 								"#{conflict[:start_period]}限"
 							else
 								"#{conflict[:start_period]}-#{conflict[:end_period]}限"
 							end
+			detail_message = "[#{conflict[:date].month}月#{conflict[:date].day}日(#{conflict[:term]}) #{conflict[:weekday]}曜日 #{conflict[:room]} #{period_text}]"
+			stdout_lines << "  #{detail_message}"
 
-			puts "  [#{conflict[:date].month}月#{conflict[:date].day}日(#{conflict[:term]}) #{conflict[:weekday]}曜日 #{conflict[:room]} #{period_text}]"
 			conflict[:entries].each do |line|
-				puts "   #{line}"
+				stdout_lines << "   #{line}"
 			end
-			puts ''
+
+			stdout_lines << ''
 		end
 
-		puts ' ==================================================='
+		stdout_lines << " #{separator_message}"
+
+		stdout_text = stdout_lines.join("\n")
+		log_text = stdout_lines.map { |line| line.sub(/\A {1,2}/, '') }.join("\n")
+		log_path = File.join(output_dir, CONFLICT_LOG_FILE_NAME)
+		puts stdout_text
+		File.write(log_path, log_text + "\n")
+
+		puts " 重複情報をログファイル '#{log_path}' に出力しました"
 	end
 
 	# 指定されたシートのセルに値とスタイルを設定する
