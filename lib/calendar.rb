@@ -142,7 +142,8 @@ end
 
 class Calendar
   class ParseError < StandardError; end
-# 休講日のセル位置
+  class FileError < StandardError; end
+
   @workbook # Excel ワークブックオブジェクト
   @sheet # Excel シートオブジェクト
 
@@ -172,6 +173,15 @@ class Calendar
   @@term3_period_cell = CellPos.new(51 - 1, "E") # 例: 51行目E列
   @@term4_period_cell = CellPos.new(53 - 1, "E") # 例: 53行目E列
 
+  @year # 学年暦の年度
+  @date_list = {} # 日付情報のハッシュ (Date -> DateInfo)
+  @@term_periods = nil # 学期 -> 期間(Date Range) のハッシュ
+
+  @@lecture_day_type_info_map = {} # 講義日種別，セルカラーマップ (Symbol -> string(theme))
+
+  @@is_loaded = false # 正しく学年暦が読み込まれたかどうかのフラグ
+
+
   attr_reader :year
   attr_reader :date_list # 日付情報のハッシュ
   attr_reader :term_periods # 学期 -> 期間(Date Range) のハッシュ
@@ -179,11 +189,6 @@ class Calendar
   def self.term_periods
     @@term_periods
   end
-  
-  @@lecture_day_type_info_map = {} # 講義日種別，セルカラーマップ (Symbol -> string(theme))
-  @@term_periods = nil
-
-  @@is_loaded = false # 正しく学年暦が読み込まれたかどうかのフラグ
 
   def initialize(input_files = nil)
     @date_list = {}
@@ -277,13 +282,13 @@ class Calendar
       # すべての枠線の色のうち，多い情報の色を採用する
       # most_common_color = border_colors.group_by { |color| color.rgb }.max_by { |_, group| group.size }&.first
       color = border_colors.group_by { |color| color.rgb }.max_by { |_, group| group.size }&.last&.first
-      info = "border-rgb:#{color}"
+      info = "border-rgb:#{color.rgb}"
     elsif theme_count > indexed_count
       color = border_colors.group_by { |color| color.theme }.max_by { |_, group| group.size }&.last&.first
-      info = "border-theme:#{color}:#{color.tint.to_s[0, 5]}"
+      info = "border-theme:#{color.tint.to_s[0, 5]}"
     else
       color = border_colors.group_by { |color| color.indexed }.max_by { |_, group| group.size }&.last&.first
-      info = "border-indexed:#{color}"
+      info = "border-indexed:#{color.indexed}"
     end
 
     info
@@ -531,6 +536,8 @@ class Calendar
     month_date_info_hash = {}
     desc_col = start_col + 7 # 備考はカレンダーの右隣の列にあると仮定
 
+    expected_day = 1 # 期待される日付の初期値
+
     # 日付セルの読み取り
     for row in start_row..(start_row + 5) # 例: 6行分を読み取る
       for col in start_col..(start_col + 6) # 例: 7列分を読み取る
@@ -553,12 +560,18 @@ class Calendar
         # セルの塗りつぶし情報から講義日種別を判定
         lecture_day_type = determine_lecture_day_type(color_info)
         if lecture_day_type.nil?
+          puts "塗りつぶし情報: #{fill_info}, 枠線情報: #{border_info}"
+          puts "登録されている講義日種別マップ: #{@@lecture_day_type_info_map}"
           raise ParseError, "[Error] 講義日種別が特定できません: セル位置 (#{row + 1}, #{$EXCEL_COLUMN_MAP[col]})"
         end
  
         # 日付セルの値がその月の日数を超えていないか確認
         if cell.value.to_i <= 0 || cell.value.to_i > $MONTH_END_DAY_MAP[month]
           raise ParseError, "[Error] 日付セルの値が不正です: セル位置 (#{row + 1}, #{$EXCEL_COLUMN_MAP[col]}), 値: #{cell.value}"
+        end
+
+        if cell.value.to_i != expected_day
+          raise ParseError, "[Error] 日付セルの値が期待される日付と一致しません: セル位置 (#{row + 1}, #{$EXCEL_COLUMN_MAP[col]}), 値: #{cell.value}, 期待される日付: #{expected_day}"
         end
 
         # DateInfo を生成
@@ -581,9 +594,11 @@ class Calendar
           date_info.instance_variable_set(:@term, date_term_name)
         end
 
+        # 授業曜日を設定して登録
         date_info.set_lecture_weekday(date_info.weekday)
-
         month_date_info_hash[date] = date_info
+
+        expected_day += 1
 
       end # 列ループ
     end # 行ループ
@@ -793,7 +808,12 @@ class Calendar
         raise ParseError, "[Error] 学年暦ファイルの拡張子が .xlsx ではありません: #{file_path}"
       end
 
-      xlsx = RubyXL::Parser.parse(file_path)
+      begin
+        xlsx = RubyXL::Parser.parse(file_path)
+      rescue => e
+        raise FileError, "[Error] 学年暦ファイルが読み込めません(破損している可能性があります): #{file_path}"
+      end
+      
       @sheet = xlsx[0] # 最初のシートを取得
       @workbook = xlsx # Excel ワークブックオブジェクトを保存
 
@@ -804,7 +824,7 @@ class Calendar
       end
 
       # うるう年の判定を行い、2月の日数を調整
-      if Date.gregorian_leap?(@year)
+      if Date.gregorian_leap?(@year + 1) # 学年暦は年度の翌年がうるう年かを判定
         $MONTH_END_DAY_MAP[2] = 29
       end
 
@@ -864,7 +884,7 @@ class Calendar
 
       # date_info の各日付情報に対して、desc_info の備考を反映
       reflect_desc_info(desc_info)
-    rescue ParseError => e
+    rescue => e
       @date_list = nil
       @term_periods = nil
       @year = nil
