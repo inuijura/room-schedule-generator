@@ -174,6 +174,7 @@ CSV内の空でない各セルが講義室名として読み込まれ、登録�
 このプロジェクトは [MIT License](LICENSE) のもとで公開されています。
 
 Copyright (c) 2026 Software Development Methodology Group1
+
  Authors:
  - Jura Inui (@inuijura)
  - Tatsuya Kaji (@tattya-hue), 
