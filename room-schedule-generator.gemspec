@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "room-schedule-generator"
-  spec.version       = "1.0"
+  spec.version       = "1.1"
   spec.summary       = "Room management CLI App"
 
   spec.authors       = ["Hisaki Teraoka"]
