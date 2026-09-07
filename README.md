@@ -169,3 +169,15 @@ CSV内の空でない各セルが講義室名として読み込まれ、登録�
 ```
 
 予定が重複している箇所は、出力ファイル内で赤色で表示されます。
+
+## ライセンスと著作権
+このプロジェクトは [MIT License](LICENSE) のもとで公開されています。
+
+Copyright (c) 2026 Software Development Methodology Group1
+ Authors:
+ - Jura Inui (@inuijura)
+ - Tatsuya Kaji (@tattya-hue), 
+ - Hiroto Ohtsuki (@o-brothers-hiroto) 
+ - Hisaki Teraoka (@teraoka-h)
+ - Shuichi Mizoguchi (@MS1208)
+ - Kota Takahashi (@Kota-Takahashi7)
