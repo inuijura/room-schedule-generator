@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 APP_NAME="room-schedule-generator"
-VERSION="1.0"
+VERSION="1.1"
 GEM_NAME="${APP_NAME}-${VERSION}.gem"
 
 REPOSITORY="inuijura/room-schedule-generator"
